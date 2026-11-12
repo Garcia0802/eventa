@@ -1,18 +1,65 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import PrimaryButton from '../../components/PrimaryButton';
 import ScreenContainer from '../../components/ScreenContainer';
+import { API_BASE_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
-import { demoEvents } from '../../data/demoEvents';
+import { getUserInterests } from '../../data/interests';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '../../styles/theme';
 
 const categories = ['Todos', 'Esportes', 'Música', 'Tecnologia', 'Educação', 'Gastronomia', 'Cultura', 'Lazer', 'Negócios'];
 
 export default function HomeScreen({ navigation }) {
-  const { user } = useAuth();
-  const featuredEvent = demoEvents[0];
+  const { user, token } = useAuth();
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const displayName = user?.name || 'Usuário';
+  const interests = useMemo(() => getUserInterests(user), [user]);
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoading(true);
+
+        const response = await fetch(token ? `${API_BASE_URL}/events/recommended` : `${API_BASE_URL}/events`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Não foi possível carregar os eventos.');
+        }
+
+        setEvents(Array.isArray(data) ? data : []);
+      } catch (error) {
+        setEvents([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, [token]);
+
+  const filteredEvents = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return events.filter((event) => {
+      const matchesSearch =
+        !query ||
+        (event.title || '').toLowerCase().includes(query) ||
+        (event.description || '').toLowerCase().includes(query) ||
+        (event.city || '').toLowerCase().includes(query);
+
+      const matchesCategory = categories.includes('Todos') || true;
+      return matchesSearch && matchesCategory;
+    });
+  }, [events, search]);
+
+  const featuredEvent = filteredEvents[0] || events[0] || null;
+  const upcomingEvents = filteredEvents.slice(0, 5);
 
   return (
     <ScreenContainer>
@@ -20,7 +67,9 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.greeting}>Olá, {displayName.split(' ')[0]}!</Text>
-            <Text style={styles.subGreeting}>Encontre o próximo evento ideal.</Text>
+            <Text style={styles.subGreeting}>
+              {interests.length > 0 ? `Baseado em: ${interests.join(', ')}` : 'Encontre o próximo evento ideal.'}
+            </Text>
           </View>
           <View style={styles.avatarBadge}>
             <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
@@ -30,6 +79,8 @@ export default function HomeScreen({ navigation }) {
         <TextInput
           style={styles.searchBox}
           placeholder="Buscar eventos"
+          value={search}
+          onChangeText={setSearch}
           placeholderTextColor={COLORS.textSecondary}
         />
 
@@ -41,32 +92,49 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
 
-        <View style={styles.featuredCard}>
-          <Image source={{ uri: featuredEvent.image }} style={styles.featuredImage} />
-          <View style={styles.featuredInfo}>
-            <Text style={styles.badge}>Destaque</Text>
-            <Text style={styles.featuredTitle}>{featuredEvent.title}</Text>
-            <Text style={styles.featuredMeta}>{featuredEvent.date} • {featuredEvent.city}</Text>
-            <PrimaryButton label="Ver evento" onPress={() => navigation.navigate('Explore')} style={styles.featuredButton} />
+        {loading ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>Carregando sugestões...</Text>
           </View>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Próximos eventos</Text>
-          <Text style={styles.seeAll}>Ver todos</Text>
-        </View>
-
-        {demoEvents.slice(1, 5).map((event) => (
-          <View key={event.id} style={styles.eventCard}>
-            <Image source={{ uri: event.image }} style={styles.eventImage} />
-            <View style={styles.eventInfo}>
-              <Text style={styles.eventCategory}>{event.category}</Text>
-              <Text style={styles.eventTitle}>{event.title}</Text>
-              <Text style={styles.eventMeta}>{event.date} • {event.time}</Text>
-              <Text style={styles.eventMeta}>{event.city} • {event.venue}</Text>
+        ) : featuredEvent ? (
+          <>
+            <View style={styles.featuredCard}>
+              <Image source={{ uri: featuredEvent.image_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30' }} style={styles.featuredImage} />
+              <View style={styles.featuredInfo}>
+                <Text style={styles.badge}>Destaque</Text>
+                <Text style={styles.featuredTitle}>{featuredEvent.title}</Text>
+                <Text style={styles.featuredMeta}>
+                  {new Date(featuredEvent.start_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {featuredEvent.city}
+                </Text>
+                <Text style={styles.featuredMeta}>{featuredEvent.category_name}</Text>
+                <PrimaryButton label="Ver evento" onPress={() => navigation.navigate('Explore')} style={styles.featuredButton} />
+              </View>
             </View>
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Próximos eventos</Text>
+              <Text style={styles.seeAll}>Ver todos</Text>
+            </View>
+
+            {upcomingEvents.map((event) => (
+              <View key={event.id} style={styles.eventCard}>
+                <Image source={{ uri: event.image_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30' }} style={styles.eventImage} />
+                <View style={styles.eventInfo}>
+                  <Text style={styles.eventCategory}>{event.category_name}</Text>
+                  <Text style={styles.eventTitle}>{event.title}</Text>
+                  <Text style={styles.eventMeta}>
+                    {new Date(event.start_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {new Date(event.start_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                  <Text style={styles.eventMeta}>{event.city} • {event.venue}</Text>
+                </View>
+              </View>
+            ))}
+          </>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>Nenhum evento encontrado no momento.</Text>
           </View>
-        ))}
+        )}
       </ScrollView>
     </ScreenContainer>
   );
@@ -228,5 +296,16 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 12,
     marginBottom: 2,
+  },
+  emptyState: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg,
+    marginTop: SPACING.md,
+  },
+  emptyText: {
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    fontSize: 15,
   },
 });

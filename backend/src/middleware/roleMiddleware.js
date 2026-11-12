@@ -1,3 +1,9 @@
+const roleRules = {
+  PARTICIPANT: (role) => ['PARTICIPANT', 'ORGANIZER', 'ADMIN'].includes(role),
+  ORGANIZER: (role) => ['ORGANIZER', 'ADMIN'].includes(role),
+  ADMIN: (role) => role === 'ADMIN',
+};
+
 module.exports = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {

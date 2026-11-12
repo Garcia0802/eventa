@@ -12,7 +12,10 @@ import ExploreScreen from '../screens/participant/ExploreScreen';
 import EventDetailsScreen from '../screens/participant/EventDetailsScreen';
 import MyRegistrationsScreen from '../screens/participant/MyRegistrationsScreen';
 import ProfileScreen from '../screens/participant/ProfileScreen';
+import OrganizerRequestScreen from '../screens/participant/OrganizerRequestScreen';
 import CreateEventScreen from '../screens/organizer/CreateEventScreen';
+import DashboardScreen from '../screens/organizer/DashboardScreen';
+import OrganizerRequestsScreen from '../screens/admin/OrganizerRequestsScreen';
 
 import { useAuth } from '../context/AuthContext';
 import { COLORS } from '../styles/theme';
@@ -21,6 +24,11 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function AppTabs() {
+  const { user } = useAuth();
+  const isOrganizer = user?.role === 'ORGANIZER';
+  const isAdmin = user?.role === 'ADMIN';
+  const canCreateEvents = isOrganizer || isAdmin;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -28,9 +36,11 @@ function AppTabs() {
           const icons = {
             Home: 'home-outline',
             Explore: 'compass-outline',
+            Dashboard: 'stats-chart-outline',
             CreateEvent: 'add-circle-outline',
             MyRegistrations: 'calendar-outline',
             Profile: 'person-outline',
+            OrganizerRequests: 'shield-checkmark-outline',
           };
           return <Ionicons name={icons[route.name] || 'help-circle-outline'} size={size} color={color} />;
         },
@@ -42,7 +52,9 @@ function AppTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Início' }} />
       <Tab.Screen name="Explore" component={ExploreScreen} options={{ title: 'Explorar' }} />
-      <Tab.Screen name="CreateEvent" component={CreateEventScreen} options={{ title: 'Criar evento' }} />
+      {isOrganizer && <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Painel' }} />}
+      {canCreateEvents && <Tab.Screen name="CreateEvent" component={CreateEventScreen} options={{ title: 'Criar evento' }} />}
+      {isAdmin && <Tab.Screen name="OrganizerRequests" component={OrganizerRequestsScreen} options={{ title: 'Solicitações' }} />}
       <Tab.Screen name="MyRegistrations" component={MyRegistrationsScreen} options={{ title: 'Minhas inscrições' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />
     </Tab.Navigator>
@@ -64,6 +76,7 @@ function AuthStack() {
         <>
           <Stack.Screen name="AppTabs" component={AppTabs} />
           <Stack.Screen name="EventDetails" component={EventDetailsScreen} />
+          <Stack.Screen name="OrganizerRequest" component={OrganizerRequestScreen} />
         </>
       )}
     </Stack.Navigator>

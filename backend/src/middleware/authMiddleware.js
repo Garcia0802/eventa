@@ -13,7 +13,7 @@ module.exports = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'eventa_secret');
 
     const [rows] = await pool.execute(
-      'SELECT id, name, email, role, city FROM users WHERE id = ?',
+      'SELECT id, name, email, role, city, category_1, category_2, category_3 FROM users WHERE id = ?',
       [decoded.id]
     );
 

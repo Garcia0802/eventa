@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { COLORS, RADIUS, SPACING } from '../../styles/theme';
 
 export default function CreateEventScreen() {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: 'info', title: '', message: '' });
@@ -25,6 +25,15 @@ export default function CreateEventScreen() {
   });
 
   useEffect(() => {
+    if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+      setFeedback({
+        type: 'error',
+        title: 'Permissão negada',
+        message: 'Apenas organizadores e administradores podem criar eventos.',
+      });
+      return;
+    }
+
     const loadCategories = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/categories`);
@@ -43,11 +52,18 @@ export default function CreateEventScreen() {
     };
 
     loadCategories();
-  }, []);
+  }, [user]);
 
   const updateField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleCreateEvent = async () => {
+    if (!user || (user.role !== 'ORGANIZER' && user.role !== 'ADMIN')) {
+      const message = 'Você não tem permissão para criar eventos.';
+      setFeedback({ type: 'error', title: 'Permissão negada', message });
+      Alert.alert('Atenção', message);
+      return;
+    }
+
     if (!form.title || !form.description || !form.category_id || !form.start_at || !form.venue || !form.city || !form.capacity) {
       const message = 'Preencha todos os campos obrigatórios do evento.';
       setFeedback({ type: 'error', title: 'Campos obrigatórios', message });
@@ -115,69 +131,75 @@ export default function CreateEventScreen() {
           visible={Boolean(feedback.message)}
         />
 
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Título"
-            value={form.title}
-            onChangeText={(value) => updateField('title', value)}
-          />
+        {user && (user.role === 'ORGANIZER' || user.role === 'ADMIN') ? (
+          <View style={styles.form}>
+            <TextInput
+              style={styles.input}
+              placeholder="Título"
+              value={form.title}
+              onChangeText={(value) => updateField('title', value)}
+            />
 
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            multiline
-            numberOfLines={4}
-            placeholder="Descrição"
-            value={form.description}
-            onChangeText={(value) => updateField('description', value)}
-          />
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              multiline
+              numberOfLines={4}
+              placeholder="Descrição"
+              value={form.description}
+              onChangeText={(value) => updateField('description', value)}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Categoria (ID da categoria)"
-            keyboardType="numeric"
-            value={form.category_id}
-            onChangeText={(value) => updateField('category_id', value)}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Categoria (ID da categoria)"
+              keyboardType="numeric"
+              value={form.category_id}
+              onChangeText={(value) => updateField('category_id', value)}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Data e hora (YYYY-MM-DDTHH:MM:SS)"
-            value={form.start_at}
-            onChangeText={(value) => updateField('start_at', value)}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Data e hora (YYYY-MM-DDTHH:MM:SS)"
+              value={form.start_at}
+              onChangeText={(value) => updateField('start_at', value)}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Local"
-            value={form.venue}
-            onChangeText={(value) => updateField('venue', value)}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Local"
+              value={form.venue}
+              onChangeText={(value) => updateField('venue', value)}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Cidade"
-            value={form.city}
-            onChangeText={(value) => updateField('city', value)}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Cidade"
+              value={form.city}
+              onChangeText={(value) => updateField('city', value)}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Capacidade máxima"
-            keyboardType="numeric"
-            value={form.capacity}
-            onChangeText={(value) => updateField('capacity', value)}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Capacidade máxima"
+              keyboardType="numeric"
+              value={form.capacity}
+              onChangeText={(value) => updateField('capacity', value)}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Imagem (URL opcional)"
-            value={form.image_url}
-            onChangeText={(value) => updateField('image_url', value)}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Imagem (URL opcional)"
+              value={form.image_url}
+              onChangeText={(value) => updateField('image_url', value)}
+            />
 
-          <PrimaryButton label={loading ? 'Salvando...' : 'Salvar evento'} onPress={handleCreateEvent} />
-        </View>
+            <PrimaryButton label={loading ? 'Salvando...' : 'Salvar evento'} onPress={handleCreateEvent} />
+          </View>
+        ) : (
+          <View style={styles.lockedState}>
+            <Text style={styles.lockedText}>Você precisa ser organizador ou administrador para criar eventos.</Text>
+          </View>
+        )}
       </ScrollView>
     </ScreenContainer>
   );
@@ -210,5 +232,18 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     textAlignVertical: 'top',
+  },
+  lockedState: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.lg,
+    marginTop: SPACING.md,
+  },
+  lockedText: {
+    color: COLORS.textSecondary,
+    fontSize: 15,
+    textAlign: 'center',
   },
 });

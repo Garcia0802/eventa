@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import ScreenContainer from '../../components/ScreenContainer';
 import { API_BASE_URL } from '../../config/api';
@@ -12,6 +12,8 @@ export default function ExploreScreen({ navigation }) {
   const [events, setEvents] = useState([]);
   const [categories, setCategories] = useState(['Todos']);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
+  const [animations, setAnimations] = useState({});
 
   useEffect(() => {
     const loadData = async () => {
@@ -53,6 +55,21 @@ export default function ExploreScreen({ navigation }) {
       return matchesSearch && matchesCategory && matchesCity;
     });
   }, [events, search, selectedCategory, selectedCity]);
+
+  const toggleExpand = async (eventId) => {
+    setExpandedId((current) => (current === eventId ? null : eventId));
+
+    if (!animations[eventId]) {
+      setAnimations((prev) => ({ ...prev, [eventId]: new Animated.Value(0) }));
+    }
+
+    const animatedValue = animations[eventId] || new Animated.Value(0);
+    Animated.timing(animatedValue, {
+      toValue: expandedId === eventId ? 0 : 1,
+      duration: 280,
+      useNativeDriver: false,
+    }).start();
+  };
 
   return (
     <ScreenContainer>
@@ -111,24 +128,48 @@ export default function ExploreScreen({ navigation }) {
           <Text style={styles.emptyText}>Nenhum evento encontrado com os filtros atuais.</Text>
         </View>
       ) : (
-        filteredEvents.map((event) => (
-          <Pressable key={event.id} style={styles.eventCard} onPress={() => navigation.navigate('EventDetails', { event: {
-            ...event,
-            image: event.image_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30',
-            category: event.category_name,
-            organizer: event.organizer_name,
-            date: new Date(event.start_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
-            time: new Date(event.start_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          }})}>
-            <Image source={{ uri: event.image_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30' }} style={styles.eventImage} />
-            <View style={styles.eventContent}>
-              <Text style={styles.eventCategory}>{event.category_name}</Text>
-              <Text style={styles.eventTitle}>{event.title}</Text>
-              <Text style={styles.eventMeta}>{new Date(event.start_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {event.city}</Text>
-              <Text style={styles.eventMeta}>{event.venue}</Text>
-            </View>
-          </Pressable>
-        ))
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {filteredEvents.map((event) => {
+            const isExpanded = expandedId === event.id;
+            const animatedHeight = animations[event.id] || new Animated.Value(isExpanded ? 1 : 0);
+            const animatedStyle = {
+              maxHeight: animatedHeight.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 260],
+              }),
+              opacity: animatedHeight,
+              overflow: 'hidden',
+            };
+
+            return (
+              <Pressable key={event.id} style={styles.eventCard} onPress={() => toggleExpand(event.id)}>
+                <Image source={{ uri: event.image_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30' }} style={styles.eventImage} />
+                <View style={styles.eventContent}>
+                  <Text style={styles.eventCategory}>{event.category_name}</Text>
+                  <Text style={styles.eventTitle}>{event.title}</Text>
+                  <Text style={styles.eventMeta}>{new Date(event.start_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {event.city}</Text>
+                  <Text style={styles.eventMeta}>{event.venue}</Text>
+                  <Text style={styles.eventMeta}>Confirmados: {event.confirmed_count || 0}</Text>
+
+                  <Animated.View style={[styles.detailsPanel, animatedStyle]}>
+                    <Text style={styles.sectionLabel}>Descrição</Text>
+                    <Text style={styles.description}>{event.description}</Text>
+                    <Text style={styles.sectionLabel}>Organizador</Text>
+                    <Text style={styles.description}>{event.organizer_name}</Text>
+                    <Text style={styles.sectionLabel}>Participantes confirmados</Text>
+                    {(event.participants && event.participants.length > 0) ? (
+                      event.participants.map((participant) => (
+                        <Text key={participant.id} style={styles.participantItem}>• {participant.name}</Text>
+                      ))
+                    ) : (
+                      <Text style={styles.description}>Ainda não há participantes confirmados.</Text>
+                    )}
+                  </Animated.View>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       )}
     </ScreenContainer>
   );
@@ -219,13 +260,36 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 18,
+    fontWeight: '700',
     marginBottom: 6,
   },
   eventMeta: {
     color: COLORS.textSecondary,
     fontSize: 12,
     marginBottom: 2,
+  },
+  detailsPanel: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  sectionLabel: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: SPACING.sm,
+    marginBottom: 4,
+  },
+  description: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  participantItem: {
+    color: COLORS.text,
+    fontSize: 13,
+    marginBottom: 4,
   },
 });

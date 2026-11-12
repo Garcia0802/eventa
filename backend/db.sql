@@ -6,12 +6,32 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(120) NOT NULL,
   email VARCHAR(150) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('PARTICIPANT', 'ORGANIZER') NOT NULL DEFAULT 'PARTICIPANT',
+  role ENUM('PARTICIPANT', 'ORGANIZER', 'ADMIN') NOT NULL DEFAULT 'PARTICIPANT',
   city VARCHAR(100) NULL,
+  category_1 VARCHAR(80) NULL,
+  category_2 VARCHAR(80) NULL,
+  category_3 VARCHAR(80) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email),
   INDEX idx_users_role (role)
+);
+
+CREATE TABLE IF NOT EXISTS organizer_requests (
+  id INT NOT NULL AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  reason VARCHAR(300) NOT NULL,
+  status ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+  reviewed_by INT NULL,
+  reviewed_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_request_status (status),
+  INDEX idx_request_user (user_id),
+  INDEX idx_request_created (created_at),
+  CONSTRAINT fk_request_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_request_admin FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -59,6 +79,9 @@ CREATE TABLE IF NOT EXISTS registrations (
   CONSTRAINT fk_registrations_user FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
+ALTER TABLE users
+  MODIFY COLUMN role ENUM('PARTICIPANT', 'ORGANIZER', 'ADMIN') NOT NULL DEFAULT 'PARTICIPANT';
+
 INSERT INTO categories (name)
 SELECT 'Esportes'
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Esportes');
@@ -90,62 +113,3 @@ WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Lazer');
 INSERT INTO categories (name)
 SELECT 'Negócios'
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Negócios');
-
-INSERT INTO users (name, email, password_hash, role, city)
-SELECT 'Maria Silva', 'maria@email.com', '$2b$10$iy9gL3xvxGZPae6kr3PpsOGeWtSKw5bua.AfxClpDrwXIsOJQcn/K', 'PARTICIPANT', 'São Paulo'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'maria@email.com');
-
-INSERT INTO users (name, email, password_hash, role, city)
-SELECT 'Ana Costa', 'ana@eventa.com', '$2b$10$AU8k2mcnqdlkpS9SM2vOuufGD3DaiTLAVH3RxMRYlekbpJQw6ar2W', 'ORGANIZER', 'Belo Horizonte'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'ana@eventa.com');
-
-INSERT INTO users (name, email, password_hash, role, city)
-SELECT 'João Pereira', 'joao@email.com', '$2b$10$iy9gL3xvxGZPae6kr3PpsOGeWtSKw5bua.AfxClpDrwXIsOJQcn/K', 'PARTICIPANT', 'Rio de Janeiro'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'joao@email.com');
-
-INSERT INTO events (organizer_id, category_id, title, description, start_at, venue, city, capacity, image_url, status)
-SELECT u.id, c.id, 'Festival de Música Indie', 'Show com bandas locais, food trucks e área de descanso para o público.', '2026-11-22 19:00:00', 'Parque das Artes', 'Rio de Janeiro', 500,
-'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=900&q=80', 'PUBLISHED'
-FROM users u, categories c
-WHERE u.email = 'ana@eventa.com' AND c.name = 'Música'
-AND NOT EXISTS (SELECT 1 FROM events WHERE title = 'Festival de Música Indie');
-
-INSERT INTO events (organizer_id, category_id, title, description, start_at, venue, city, capacity, image_url, status)
-SELECT u.id, c.id, 'Workshop de Programação para Iniciantes', 'Aula prática sobre lógica, JavaScript e criação de projetos do zero.', '2026-11-28 17:00:00', 'Campus Digital', 'Belo Horizonte', 80,
-'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=900&q=80', 'PUBLISHED'
-FROM users u, categories c
-WHERE u.email = 'ana@eventa.com' AND c.name = 'Tecnologia'
-AND NOT EXISTS (SELECT 1 FROM events WHERE title = 'Workshop de Programação para Iniciantes');
-
-INSERT INTO events (organizer_id, category_id, title, description, start_at, venue, city, capacity, image_url, status)
-SELECT u.id, c.id, 'Feira Gastronômica do Bairro', 'Experiência gastronômica com comidas regionais e oficinas de preparo.', '2026-11-25 12:00:00', 'Praça Central', 'Curitiba', 350,
-'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=80', 'PUBLISHED'
-FROM users u, categories c
-WHERE u.email = 'ana@eventa.com' AND c.name = 'Gastronomia'
-AND NOT EXISTS (SELECT 1 FROM events WHERE title = 'Feira Gastronômica do Bairro');
-
-INSERT INTO events (organizer_id, category_id, title, description, start_at, venue, city, capacity, image_url, status)
-SELECT u.id, c.id, 'Campeonato de Vôlei Universitário', 'Competição aberta para alunos e comunidade com premiação para os primeiros lugares.', '2026-11-18 18:30:00', 'Ginásio da Universidade', 'São Paulo', 200,
-'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=900&q=80', 'PUBLISHED'
-FROM users u, categories c
-WHERE u.email = 'ana@eventa.com' AND c.name = 'Esportes'
-AND NOT EXISTS (SELECT 1 FROM events WHERE title = 'Campeonato de Vôlei Universitário');
-
-INSERT INTO events (organizer_id, category_id, title, description, start_at, venue, city, capacity, image_url, status)
-SELECT u.id, c.id, 'Palestra de Tecnologia e IA', 'Palestra com especialistas sobre inovação e transformação digital.', '2026-12-01 18:45:00', 'Auditório Central', 'Porto Alegre', 220,
-'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80', 'PUBLISHED'
-FROM users u, categories c
-WHERE u.email = 'ana@eventa.com' AND c.name = 'Tecnologia'
-AND NOT EXISTS (SELECT 1 FROM events WHERE title = 'Palestra de Tecnologia e IA');
-
-INSERT INTO registrations (event_id, user_id, status)
-SELECT e.id, u.id, 'CONFIRMED'
-FROM events e, users u
-WHERE e.title = 'Festival de Música Indie' AND u.email = 'maria@email.com'
-AND NOT EXISTS (SELECT 1 FROM registrations WHERE event_id = e.id AND user_id = u.id);
-
-INSERT INTO registrations (event_id, user_id, status)
-SELECT e.id, u.id, 'CONFIRMED'
-FROM events e, users u
-WHERE e.title = 'Workshop de Programação para Iniciantes' AND u.email = 'joao@email.com'
-AND NOT EXISTS (SELECT 1 FROM registrations WHERE event_id = e.id AND user_id = u.id);

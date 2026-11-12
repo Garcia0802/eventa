@@ -1,37 +1,72 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import ScreenContainer from '../../components/ScreenContainer';
+import { API_BASE_URL } from '../../config/api';
+import { useAuth } from '../../context/AuthContext';
 import { COLORS, RADIUS, SPACING } from '../../styles/theme';
 
-const registrations = [
-  { id: 1, title: 'Festival de Música Indie', status: 'Confirmada', date: '22 nov' },
-  { id: 2, title: 'Workshop de Programação', status: 'Confirmada', date: '28 nov' },
-  { id: 3, title: 'Palestra de Tecnologia e IA', status: 'Cancelada', date: '01 dez' },
-];
-
 export default function MyRegistrationsScreen() {
+  const { token } = useAuth();
+  const [registrations, setRegistrations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadRegistrations = async () => {
+      if (!token) {
+        setRegistrations([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE_URL}/events/my-registrations`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Erro ao carregar inscrições.');
+        }
+
+        setRegistrations(Array.isArray(data) ? data : []);
+      } catch (error) {
+        setRegistrations([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRegistrations();
+  }, [token]);
+
   return (
     <ScreenContainer>
       <Text style={styles.title}>Minhas inscrições</Text>
 
-      <View style={styles.tabsContainer}>
-        <Text style={[styles.tab, styles.tabActive]}>Confirmadas</Text>
-        <Text style={styles.tab}>Histórico</Text>
-        <Text style={styles.tab}>Canceladas</Text>
-      </View>
-
-      {registrations.map((item) => (
-        <View key={item.id} style={styles.card}>
-          <Text style={styles.eventTitle}>{item.title}</Text>
-          <View style={styles.metaRow}>
-            <Text style={styles.date}>{item.date}</Text>
-            <Text style={[styles.status, item.status === 'Cancelada' ? styles.statusCancelled : styles.statusConfirmed]}>
-              {item.status}
-            </Text>
-          </View>
+      {loading ? (
+        <View style={styles.stateBox}>
+          <ActivityIndicator color={COLORS.navySecondary} />
+          <Text style={styles.emptyText}>Carregando inscrições...</Text>
         </View>
-      ))}
+      ) : registrations.length === 0 ? (
+        <View style={styles.stateBox}>
+          <Text style={styles.emptyText}>Você ainda não se inscreveu em nenhum evento.</Text>
+        </View>
+      ) : (
+        registrations.map((item) => (
+          <View key={item.id} style={styles.card}>
+            <Text style={styles.eventTitle}>{item.title}</Text>
+            <View style={styles.metaRow}>
+              <Text style={styles.date}>{new Date(item.start_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
+              <Text style={[styles.status, item.status === 'CANCELLED' ? styles.statusCancelled : styles.statusConfirmed]}>
+                {item.status === 'CANCELLED' ? 'Cancelada' : 'Confirmada'}
+              </Text>
+            </View>
+          </View>
+        ))
+      )}
     </ScreenContainer>
   );
 }
@@ -43,25 +78,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginBottom: SPACING.md,
   },
-  tabsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  stateBox: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.md,
-    padding: 6,
-    marginBottom: SPACING.md,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.md,
   },
-  tab: {
-    flex: 1,
-    textAlign: 'center',
-    paddingVertical: SPACING.sm,
+  emptyText: {
     color: COLORS.textSecondary,
-    fontWeight: '700',
-  },
-  tabActive: {
-    backgroundColor: '#EAF1FF',
-    color: COLORS.navySecondary,
-    borderRadius: RADIUS.sm,
+    textAlign: 'center',
+    fontSize: 15,
+    marginTop: SPACING.sm,
   },
   card: {
     backgroundColor: COLORS.white,
