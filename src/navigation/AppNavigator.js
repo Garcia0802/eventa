@@ -15,6 +15,8 @@ import ProfileScreen from '../screens/participant/ProfileScreen';
 import OrganizerRequestScreen from '../screens/participant/OrganizerRequestScreen';
 import CreateEventScreen from '../screens/organizer/CreateEventScreen';
 import DashboardScreen from '../screens/organizer/DashboardScreen';
+import MyEventsScreen from '../screens/organizer/MyEventsScreen';
+import ParticipantsScreen from '../screens/organizer/ParticipantsScreen';
 import OrganizerRequestsScreen from '../screens/admin/OrganizerRequestsScreen';
 
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +43,8 @@ function AppTabs() {
             MyRegistrations: 'calendar-outline',
             Profile: 'person-outline',
             OrganizerRequests: 'shield-checkmark-outline',
+            MyEvents: 'folder-open-outline',
+            Participants: 'people-outline',
           };
           return <Ionicons name={icons[route.name] || 'help-circle-outline'} size={size} color={color} />;
         },
@@ -57,6 +61,8 @@ function AppTabs() {
       {isAdmin && <Tab.Screen name="OrganizerRequests" component={OrganizerRequestsScreen} options={{ title: 'Solicitações' }} />}
       <Tab.Screen name="MyRegistrations" component={MyRegistrationsScreen} options={{ title: 'Minhas inscrições' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />
+      {isOrganizer && <Tab.Screen name="MyEvents" component={MyEventsScreen} options={{ title: 'Meus eventos' }} />}
+      {isOrganizer && <Tab.Screen name="Participants" component={ParticipantsScreen} options={{ title: 'Participantes' }} />}
     </Tab.Navigator>
   );
 }
@@ -65,7 +71,11 @@ function AuthStack() {
   const { user } = useAuth();
 
   return (
-    <Stack.Navigator initialRouteName={user ? 'AppTabs' : 'Welcome'} screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      key={user ? 'authenticated' : 'unauthenticated'}
+      initialRouteName={user ? 'AppTabs' : 'Welcome'}
+      screenOptions={{ headerShown: false }}
+    >
       {!user ? (
         <>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />

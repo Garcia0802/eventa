@@ -7,9 +7,24 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
 
-  const logout = () => {
+  const logout = async () => {
+    const currentToken = token;
+
     setUser(null);
     setToken(null);
+
+    if (!currentToken) return;
+
+    try {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+    } catch (error) {
+      console.warn('Logout API failed:', error.message);
+    }
   };
 
   const refreshUser = async (currentToken = token) => {

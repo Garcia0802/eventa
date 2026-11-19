@@ -5,7 +5,6 @@ import FeedbackBanner from '../../components/FeedbackBanner';
 import PrimaryButton from '../../components/PrimaryButton';
 import ScreenContainer from '../../components/ScreenContainer';
 import { API_BASE_URL } from '../../config/api';
-import { useAuth } from '../../context/AuthContext';
 import { COLORS, RADIUS, SPACING } from '../../styles/theme';
 
 export default function RegisterScreen({ navigation }) {
@@ -15,7 +14,6 @@ export default function RegisterScreen({ navigation }) {
   const [city, setCity] = useState('');
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: 'info', title: '', message: '' });
-  const { setUser, setToken } = useAuth();
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -41,8 +39,6 @@ export default function RegisterScreen({ navigation }) {
         throw new Error(data.message || data.errors?.[0]?.msg || 'Erro ao cadastrar usuário.');
       }
 
-      setUser(data.user);
-      setToken(data.token);
       setFeedback({
         type: 'success',
         title: 'Conta criada',

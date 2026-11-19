@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import ScreenContainer from '../../components/ScreenContainer';
 import { API_BASE_URL } from '../../config/api';
@@ -41,6 +41,38 @@ export default function MyRegistrationsScreen() {
     loadRegistrations();
   }, [token]);
 
+  const handleCancelRegistration = async (eventId) => {
+    if (!token) return;
+
+    Alert.alert('Cancelar inscrição', 'Deseja cancelar sua presença neste evento?', [
+      { text: 'Não', style: 'cancel' },
+      {
+        text: 'Cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const response = await fetch(`${API_BASE_URL}/events/${eventId}/register`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+              throw new Error(data.message || 'Erro ao cancelar inscrição.');
+            }
+
+            setRegistrations((prev) =>
+              prev.map((item) => (item.event_id === eventId ? { ...item, status: 'CANCELLED' } : item))
+            );
+            Alert.alert('Sucesso', data.message);
+          } catch (error) {
+            Alert.alert('Erro', error.message);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <ScreenContainer>
       <Text style={styles.title}>Minhas inscrições</Text>
@@ -64,6 +96,11 @@ export default function MyRegistrationsScreen() {
                 {item.status === 'CANCELLED' ? 'Cancelada' : 'Confirmada'}
               </Text>
             </View>
+            {item.status === 'CONFIRMED' && (
+              <Pressable style={styles.cancelButton} onPress={() => handleCancelRegistration(item.event_id)}>
+                <Text style={styles.cancelButtonText}>Cancelar inscrição</Text>
+              </Pressable>
+            )}
           </View>
         ))
       )}
@@ -127,5 +164,17 @@ const styles = StyleSheet.create({
   statusCancelled: {
     backgroundColor: '#FDECEC',
     color: '#C95454',
+  },
+  cancelButton: {
+    marginTop: SPACING.md,
+    backgroundColor: '#F44336',
+    borderRadius: RADIUS.md,
+    paddingVertical: 10,
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: COLORS.white,
+    fontWeight: '700',
   },
 });

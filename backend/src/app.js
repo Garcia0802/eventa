@@ -20,8 +20,14 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/organizer-requests', organizerRequestRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, message: 'Eventa API funcionando.' });
+app.get('/api/health', async (req, res) => {
+  try {
+    const pool = require('./config/database');
+    await pool.execute('SELECT 1');
+    res.json({ ok: true, message: 'Eventa API funcionando.' });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: 'Erro de conexão com MySQL.' });
+  }
 });
 
 app.use(errorMiddleware);

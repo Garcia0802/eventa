@@ -1,53 +1,73 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import PrimaryButton from '../../components/PrimaryButton';
 import ScreenContainer from '../../components/ScreenContainer';
+import { API_BASE_URL } from '../../config/api';
+import { useAuth } from '../../context/AuthContext';
 import { COLORS, RADIUS, SPACING } from '../../styles/theme';
 
-const stats = [
-  { label: 'Total de eventos', value: '12' },
-  { label: 'Total de inscrições', value: '840' },
-];
+export default function DashboardScreen({ navigation }) {
+  const { token } = useAuth();
+  const [summary, setSummary] = useState({ totalEvents: 0, totalRegistrations: 0, events: [] });
+  const [loading, setLoading] = useState(true);
 
-const upcoming = [
-  { title: 'Workshop de Programação', date: '28 nov' },
-  { title: 'Palestra de Tecnologia', date: '01 dez' },
-  { title: 'Encontro de Empreendedores', date: '08 dez' },
-];
+  useEffect(() => {
+    const loadSummary = async () => {
+      if (!token) return;
 
-export default function DashboardScreen() {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE_URL}/events/organizer/summary`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Erro ao carregar painel.');
+        setSummary(data);
+      } catch (_) {
+        setSummary({ totalEvents: 0, totalRegistrations: 0, events: [] });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSummary();
+  }, [token]);
+
   return (
     <ScreenContainer>
       <Text style={styles.title}>Painel</Text>
 
-      <View style={styles.statsGrid}>
-        {stats.map((stat) => (
-          <View key={stat.label} style={styles.statCard}>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
+      {loading ? (
+        <View style={styles.card}><ActivityIndicator color={COLORS.navySecondary} /></View>
+      ) : (
+        <>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}><Text style={styles.statValue}>{summary.totalEvents}</Text><Text style={styles.statLabel}>Total de eventos</Text></View>
+            <View style={styles.statCard}><Text style={styles.statValue}>{summary.totalRegistrations}</Text><Text style={styles.statLabel}>Total de inscrições</Text></View>
           </View>
-        ))}
-      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Próximos eventos</Text>
-        {upcoming.map((item) => (
-          <View key={item.title} style={styles.listItem}>
-            <View>
-              <Text style={styles.listTitle}>{item.title}</Text>
-              <Text style={styles.listDate}>{item.date}</Text>
-            </View>
-            <Text style={styles.listBadge}>Ativo</Text>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Meus eventos</Text>
+            {summary.events.length === 0 ? (
+              <Text style={styles.meta}>Nenhum evento criado ainda.</Text>
+            ) : summary.events.map((event) => (
+              <View key={event.id} style={styles.listItem}>
+                <View>
+                  <Text style={styles.listTitle}>{event.title}</Text>
+                  <Text style={styles.listDate}>{new Date(event.start_at).toLocaleString('pt-BR')}</Text>
+                </View>
+                <Text style={styles.listBadge}>{event.confirmed_count || 0} inscritos</Text>
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Ações rápidas</Text>
-        <PrimaryButton label="Criar evento" style={styles.actionButton} />
-        <PrimaryButton label="Ver inscritos" style={[styles.actionButton, styles.secondaryAction]} />
-      </View>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Ações rápidas</Text>
+            <PrimaryButton label="Criar evento" onPress={() => navigation.navigate('CreateEvent')} style={styles.actionButton} />
+          </View>
+        </>
+      )}
     </ScreenContainer>
   );
 }

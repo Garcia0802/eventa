@@ -143,7 +143,7 @@ export default function ExploreScreen({ navigation }) {
 
             return (
               <Pressable key={event.id} style={styles.eventCard} onPress={() => toggleExpand(event.id)}>
-                <Image source={{ uri: event.image_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30' }} style={styles.eventImage} />
+                <Image source={{ uri: event.image_url }} style={styles.eventImage} />
                 <View style={styles.eventContent}>
                   <Text style={styles.eventCategory}>{event.category_name}</Text>
                   <Text style={styles.eventTitle}>{event.title}</Text>
@@ -164,6 +164,12 @@ export default function ExploreScreen({ navigation }) {
                     ) : (
                       <Text style={styles.description}>Ainda não há participantes confirmados.</Text>
                     )}
+                    <Pressable
+                      style={styles.detailsButton}
+                      onPress={() => navigation.navigate('EventDetails', { eventId: event.id })}
+                    >
+                      <Text style={styles.detailsButtonText}>Ver detalhes e confirmar presença</Text>
+                    </Pressable>
                   </Animated.View>
                 </View>
               </Pressable>
@@ -291,5 +297,18 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 13,
     marginBottom: 4,
+  },
+  detailsButton: {
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.navySecondary,
+    borderRadius: RADIUS.md,
+    paddingVertical: 12,
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+  },
+  detailsButtonText: {
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

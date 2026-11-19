@@ -119,3 +119,9 @@ exports.login = async (req, res, next) => {
 exports.me = async (req, res) => {
   res.json({ user: toUserPayload(req.user) });
 };
+
+exports.logout = async (req, res) => {
+  res.json({
+    message: 'Logout realizado com sucesso.',
+  });
+};

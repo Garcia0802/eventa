@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import FeedbackBanner from '../../components/FeedbackBanner';
 import PrimaryButton from '../../components/PrimaryButton';
 import ScreenContainer from '../../components/ScreenContainer';
 import { API_BASE_URL } from '../../config/api';
@@ -17,11 +18,14 @@ export default function OrganizerRequestsScreen() {
   const { token, refreshUser } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState({ type: 'info', title: '', message: '' });
+  const [statusFilter, setStatusFilter] = useState('PENDING');
 
   const loadRequests = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/admin/organizer-requests`, {
+      const statusQuery = statusFilter === 'TODAS' ? '' : `?status=${statusFilter}`;
+      const response = await fetch(`${API_BASE_URL}/admin/organizer-requests${statusQuery}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -32,7 +36,15 @@ export default function OrganizerRequestsScreen() {
 
       setRequests(data);
     } catch (error) {
-      Alert.alert('Erro', error.message || 'Não foi possível carregar as solicitações.');
+      console.log('[Organizador] Erro ao carregar solicitações:', error);
+      setFeedback({
+        type: 'error',
+        title: 'Erro ao carregar',
+        message: error.message || 'Não foi possível carregar as solicitações.',
+      });
+      if (Platform.OS !== 'web') {
+        Alert.alert('Erro', error.message || 'Não foi possível carregar as solicitações.');
+      }
     } finally {
       setLoading(false);
     }
@@ -40,55 +52,125 @@ export default function OrganizerRequestsScreen() {
 
   useEffect(() => {
     loadRequests();
-  }, []);
+  }, [statusFilter]);
 
-  const handleReview = async (requestId, decision) => {
+  const submitReview = async (requestId, decision) => {
+    console.log('[Organizador] Confirmado:', { requestId, decision });
+
+    try {
+      const url = `${API_BASE_URL}/admin/organizer-requests/${requestId}/review`;
+      console.log('[Organizador] Enviando PATCH:', url);
+
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ decision }),
+      });
+
+      console.log('[Organizador] Status HTTP:', response.status);
+
+      const data = await response.json();
+      console.log('[Organizador] Resposta da API:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || data.errors?.[0]?.msg || 'Erro ao atualizar a solicitação.');
+      }
+
+      setFeedback({
+        type: 'success',
+        title: 'Solicitação atualizada',
+        message: data.message || 'A ação foi concluída com sucesso.',
+      });
+
+      await refreshUser();
+      await loadRequests();
+      console.log('[Organizador] Solicitações recarregadas após decisão');
+    } catch (error) {
+      console.log('[Organizador] Erro ao revisar:', error);
+      setFeedback({
+        type: 'error',
+        title: 'Erro ao processar',
+        message: error.message || 'Não foi possível atualizar a solicitação.',
+      });
+
+      if (Platform.OS !== 'web') {
+        Alert.alert('Erro', error.message || 'Não foi possível atualizar a solicitação.');
+      }
+    }
+  };
+
+  const handleReview = (requestId, decision) => {
+    console.log('[Organizador] Solicitação selecionada:', requestId);
+    console.log('[Organizador] Decisão selecionada:', decision);
+
     const actionLabel = decision === 'APPROVE' ? 'aprovar' : 'rejeitar';
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`Deseja ${actionLabel} esta solicitação?`);
+      console.log('[Organizador] Confirmação web:', confirmed);
+
+      if (confirmed) {
+        submitReview(requestId, decision);
+      } else {
+        console.log('[Organizador] Revisão cancelada:', requestId);
+      }
+      return;
+    }
+
     Alert.alert('Confirmar ação', `Deseja ${actionLabel} esta solicitação?`, [
-      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Cancelar',
+        style: 'cancel',
+        onPress: () => console.log('[Organizador] Revisão cancelada:', requestId),
+      },
       {
         text: actionLabel === 'aprovar' ? 'Aprovar' : 'Rejeitar',
         style: actionLabel === 'aprovar' ? 'default' : 'destructive',
-        onPress: async () => {
-          try {
-            const response = await fetch(`${API_BASE_URL}/admin/organizer-requests/${requestId}/review`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ decision }),
-            });
-
-            const data = await response.json();
-            if (!response.ok) {
-              throw new Error(data.message || data.errors?.[0]?.msg || 'Erro ao atualizar a solicitação.');
-            }
-
-            await refreshUser();
-            await loadRequests();
-            Alert.alert('Sucesso', data.message || 'Solicitação atualizada.');
-          } catch (error) {
-            Alert.alert('Erro', error.message || 'Não foi possível atualizar a solicitação.');
-          }
-        },
+        onPress: () => submitReview(requestId, decision),
       },
     ]);
   };
+
+  const filteredRequests = requests.filter((request) => request.status === statusFilter);
 
   return (
     <ScreenContainer>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Solicitações de organizadores</Text>
 
+        <FeedbackBanner
+          type={feedback.type}
+          title={feedback.title}
+          message={feedback.message}
+          visible={Boolean(feedback.message)}
+        />
+
+        <View style={styles.filtersRow}>
+          {['TODAS', 'PENDING', 'APPROVED', 'REJECTED'].map((value) => {
+            const label = value === 'TODAS' ? 'Todas' : value.charAt(0) + value.slice(1).toLowerCase();
+            return (
+              <Pressable
+                key={value}
+                style={[styles.filterChip, statusFilter === value && styles.filterChipSelected]}
+                onPress={() => setStatusFilter(value)}
+              >
+                <Text style={[styles.filterText, statusFilter === value && styles.filterTextSelected]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         {loading ? (
           <Text style={styles.empty}>Carregando solicitações...</Text>
-        ) : requests.length === 0 ? (
+        ) : filteredRequests.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.empty}>Nenhuma solicitação pendente no momento.</Text>
+            <Text style={styles.empty}>Nenhuma solicitação {statusFilter.toLowerCase()} no momento.</Text>
           </View>
         ) : (
-          requests.map((request) => {
+          filteredRequests.map((request) => {
             const statusStyle = STATUS_COLORS[request.status] || STATUS_COLORS.PENDING;
 
             return (
@@ -111,12 +193,18 @@ export default function OrganizerRequestsScreen() {
                   <View style={styles.actionsRow}>
                     <PrimaryButton
                       label="Aprovar"
-                      onPress={() => handleReview(request.id, 'APPROVE')}
+                      onPress={() => {
+                        console.log('[Organizador] Botão APROVAR pressionado:', request.id);
+                        handleReview(request.id, 'APPROVE');
+                      }}
                       style={styles.approveButton}
                     />
                     <PrimaryButton
                       label="Rejeitar"
-                      onPress={() => handleReview(request.id, 'REJECT')}
+                      onPress={() => {
+                        console.log('[Organizador] Botão REJEITAR pressionado:', request.id);
+                        handleReview(request.id, 'REJECT');
+                      }}
                       style={styles.rejectButton}
                     />
                   </View>
@@ -209,5 +297,31 @@ const styles = StyleSheet.create({
   empty: {
     color: COLORS.textSecondary,
     fontSize: 15,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: SPACING.md,
+  },
+  filterChip: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 999,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 8,
+  },
+  filterChipSelected: {
+    backgroundColor: COLORS.navySecondary,
+    borderColor: COLORS.navySecondary,
+  },
+  filterText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  filterTextSelected: {
+    color: COLORS.white,
   },
 });

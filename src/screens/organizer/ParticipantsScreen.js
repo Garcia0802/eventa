@@ -1,26 +1,45 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import ScreenContainer from '../../components/ScreenContainer';
+import { API_BASE_URL } from '../../config/api';
+import { useAuth } from '../../context/AuthContext';
 import { COLORS, RADIUS, SPACING } from '../../styles/theme';
 
-const participants = [
-  { name: 'Lucas Pereira', email: 'lucas@email.com', event: 'Workshop de Programação', status: 'Confirmado' },
-  { name: 'Beatriz Santos', email: 'beatriz@email.com', event: 'Palestra de Tecnologia', status: 'Pendente' },
-  { name: 'Rafael Costa', email: 'rafael@email.com', event: 'Encontro de Empreendedores', status: 'Confirmado' },
-];
-
 export default function ParticipantsScreen() {
+  const { token } = useAuth();
+  const [participants, setParticipants] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadParticipants = async () => {
+      if (!token) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}/events/organizer/participants`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        setParticipants(response.ok && Array.isArray(data) ? data : []);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadParticipants();
+  }, [token]);
+
   return (
     <ScreenContainer>
       <Text style={styles.title}>Participantes</Text>
-
-      {participants.map((person) => (
-        <View key={person.email} style={styles.card}>
+      {loading ? (
+        <ActivityIndicator color={COLORS.navySecondary} />
+      ) : participants.length === 0 ? (
+        <View style={styles.card}><Text style={styles.email}>Nenhuma inscrição confirmada.</Text></View>
+      ) : participants.map((person) => (
+        <View key={person.registration_id} style={styles.card}>
           <Text style={styles.name}>{person.name}</Text>
           <Text style={styles.email}>{person.email}</Text>
-          <Text style={styles.event}>{person.event}</Text>
-          <Text style={[styles.status, person.status === 'Confirmado' ? styles.confirmed : styles.pending]}>{person.status}</Text>
+          <Text style={styles.event}>{person.event_title}</Text>
+          <Text style={styles.status}>Confirmado</Text>
         </View>
       ))}
     </ScreenContainer>
@@ -63,13 +82,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: 6,
     borderRadius: 999,
-  },
-  confirmed: {
     backgroundColor: '#EAFBF2',
     color: '#27885D',
-  },
-  pending: {
-    backgroundColor: '#FFF3D9',
-    color: '#B77D00',
   },
 });

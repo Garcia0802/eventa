@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import PrimaryButton from '../../components/PrimaryButton';
 import ScreenContainer from '../../components/ScreenContainer';
@@ -7,8 +7,6 @@ import { API_BASE_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import { getUserInterests } from '../../data/interests';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '../../styles/theme';
-
-const categories = ['Todos', 'Esportes', 'Música', 'Tecnologia', 'Educação', 'Gastronomia', 'Cultura', 'Lazer', 'Negócios'];
 
 export default function HomeScreen({ navigation }) {
   const { user, token } = useAuth();
@@ -53,7 +51,7 @@ export default function HomeScreen({ navigation }) {
         (event.description || '').toLowerCase().includes(query) ||
         (event.city || '').toLowerCase().includes(query);
 
-      const matchesCategory = categories.includes('Todos') || true;
+      const matchesCategory = true;
       return matchesSearch && matchesCategory;
     });
   }, [events, search]);
@@ -85,7 +83,7 @@ export default function HomeScreen({ navigation }) {
         />
 
         <View style={styles.categoryRow}>
-          {categories.map((category, index) => (
+          {['Todos'].map((category, index) => (
             <View key={category} style={[styles.categoryChip, index === 0 && styles.categoryChipSelected]}>
               <Text style={[styles.categoryText, index === 0 && styles.categoryTextSelected]}>{category}</Text>
             </View>
@@ -99,7 +97,11 @@ export default function HomeScreen({ navigation }) {
         ) : featuredEvent ? (
           <>
             <View style={styles.featuredCard}>
-              <Image source={{ uri: featuredEvent.image_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30' }} style={styles.featuredImage} />
+              {featuredEvent.image_url ? (
+                <Image source={{ uri: featuredEvent.image_url }} style={styles.featuredImage} />
+              ) : (
+                <View style={[styles.featuredImage, styles.imagePlaceholder]}><Text style={styles.imagePlaceholderText}>Evento</Text></View>
+              )}
               <View style={styles.featuredInfo}>
                 <Text style={styles.badge}>Destaque</Text>
                 <Text style={styles.featuredTitle}>{featuredEvent.title}</Text>
@@ -107,7 +109,7 @@ export default function HomeScreen({ navigation }) {
                   {new Date(featuredEvent.start_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {featuredEvent.city}
                 </Text>
                 <Text style={styles.featuredMeta}>{featuredEvent.category_name}</Text>
-                <PrimaryButton label="Ver evento" onPress={() => navigation.navigate('Explore')} style={styles.featuredButton} />
+                <PrimaryButton label="Ver evento" onPress={() => navigation.navigate('EventDetails', { eventId: featuredEvent.id })} style={styles.featuredButton} />
               </View>
             </View>
 
@@ -117,17 +119,23 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             {upcomingEvents.map((event) => (
-              <View key={event.id} style={styles.eventCard}>
-                <Image source={{ uri: event.image_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30' }} style={styles.eventImage} />
-                <View style={styles.eventInfo}>
-                  <Text style={styles.eventCategory}>{event.category_name}</Text>
-                  <Text style={styles.eventTitle}>{event.title}</Text>
-                  <Text style={styles.eventMeta}>
-                    {new Date(event.start_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {new Date(event.start_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                  <Text style={styles.eventMeta}>{event.city} • {event.venue}</Text>
+              <Pressable key={event.id} onPress={() => navigation.navigate('EventDetails', { eventId: event.id })}>
+                <View style={styles.eventCard}>
+                  {event.image_url ? (
+                    <Image source={{ uri: event.image_url }} style={styles.eventImage} />
+                  ) : (
+                    <View style={[styles.eventImage, styles.imagePlaceholder]}><Text style={styles.imagePlaceholderText}>Evento</Text></View>
+                  )}
+                  <View style={styles.eventInfo}>
+                    <Text style={styles.eventCategory}>{event.category_name}</Text>
+                    <Text style={styles.eventTitle}>{event.title}</Text>
+                    <Text style={styles.eventMeta}>
+                      {new Date(event.start_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} • {new Date(event.start_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    <Text style={styles.eventMeta}>{event.city} • {event.venue}</Text>
+                  </View>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </>
         ) : (
@@ -220,6 +228,16 @@ const styles = StyleSheet.create({
   featuredImage: {
     width: '100%',
     height: 180,
+  },
+  imagePlaceholder: {
+    backgroundColor: COLORS.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePlaceholderText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   featuredInfo: {
     padding: SPACING.md,

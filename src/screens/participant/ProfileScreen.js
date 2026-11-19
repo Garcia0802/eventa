@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import ScreenContainer from '../../components/ScreenContainer';
 import { API_BASE_URL } from '../../config/api';
@@ -100,16 +100,48 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const performLogout = async () => {
+    console.log('[Logout] Usuário confirmou sair');
+    await logout();
+    console.log('[Logout] AuthContext.logout finalizado');
+
+    const rootNavigation = navigation.getParent();
+    console.log('[Logout] Navegação raiz encontrada:', Boolean(rootNavigation));
+
+    if (rootNavigation?.reset) {
+      rootNavigation.reset({
+        index: 0,
+        routes: [{ name: 'Welcome' }],
+      });
+      console.log('[Logout] Navegação resetada para Welcome');
+    }
+  };
+
   const handleLogout = () => {
+    console.log('[Logout] Botão Sair da conta pressionado');
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Deseja realmente sair da sua conta?');
+      console.log('[Logout] Confirmação web:', confirmed);
+
+      if (confirmed) {
+        performLogout();
+      } else {
+        console.log('[Logout] Ação cancelada pelo usuário');
+      }
+      return;
+    }
+
     Alert.alert('Sair da conta', 'Deseja realmente sair?', [
-      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Cancelar',
+        style: 'cancel',
+        onPress: () => console.log('[Logout] Ação cancelada pelo usuário'),
+      },
       {
         text: 'Sair',
         style: 'destructive',
-        onPress: () => {
-          logout();
-          navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
-        },
+        onPress: performLogout,
       },
     ]);
   };
@@ -263,27 +295,27 @@ const styles = StyleSheet.create({
   infoLabel: {
     color: COLORS.textSecondary,
     fontSize: 12,
-    marginBottom: 6,
     fontWeight: '700',
+    marginBottom: 6,
   },
   infoValue: {
     color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
   },
   helperText: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
     marginBottom: SPACING.md,
-    lineHeight: 18,
   },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: SPACING.md,
   },
   tagButton: {
-    backgroundColor: '#EAF1FF',
+    backgroundColor: '#F0F3F8',
     borderRadius: 999,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 8,
@@ -294,7 +326,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.navySecondary,
   },
   tagText: {
-    color: COLORS.navySecondary,
+    color: COLORS.text,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -304,14 +336,12 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: COLORS.blueAccent,
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
-    marginTop: SPACING.md,
   },
   saveButtonText: {
     color: COLORS.white,
-    fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   organizerCard: {
     backgroundColor: COLORS.white,
@@ -321,50 +351,51 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     marginBottom: SPACING.sm,
   },
   statusText: {
     color: '#B26A00',
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
   },
   statusSuccess: {
     color: '#1C7B52',
-    fontWeight: '700',
-    lineHeight: 22,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   statusError: {
     color: '#A63E45',
-    fontWeight: '700',
-    marginBottom: SPACING.md,
-  },
-  inlineHint: {
-    color: COLORS.blueAccent,
-    marginTop: SPACING.sm,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: SPACING.sm,
   },
   primaryButton: {
-    backgroundColor: COLORS.blueAccent,
+    backgroundColor: COLORS.navySecondary,
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
   },
   primaryButtonText: {
     color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
+  },
+  inlineHint: {
+    color: COLORS.blueAccent,
+    fontWeight: '700',
+    marginTop: SPACING.sm,
   },
   logoutButton: {
-    marginTop: SPACING.md,
-    backgroundColor: '#FDECEC',
+    backgroundColor: '#F5E3E3',
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.md,
     alignItems: 'center',
+    marginTop: SPACING.sm,
   },
   logoutButtonText: {
-    color: '#C62828',
-    fontSize: 16,
+    color: '#A63E45',
     fontWeight: '800',
   },
 });

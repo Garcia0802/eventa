@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import FeedbackBanner from '../../components/FeedbackBanner';
 import PrimaryButton from '../../components/PrimaryButton';
@@ -17,6 +18,15 @@ export default function OrganizerRequestScreen({ navigation }) {
   const [feedback, setFeedback] = useState({ type: 'info', title: '', message: '' });
 
   const remainingChars = useMemo(() => MAX_REASON_LENGTH - reason.length, [reason]);
+
+  const openTab = (tabName) => {
+    navigation.navigate('AppTabs', { screen: tabName });
+  };
+
+  const handleGoBack = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else openTab('Profile');
+  };
 
   const handleSubmit = async () => {
     const trimmed = reason.trim();
@@ -76,6 +86,9 @@ export default function OrganizerRequestScreen({ navigation }) {
   return (
     <ScreenContainer>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <Pressable onPress={handleGoBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+        </Pressable>
         <Text style={styles.title}>Quero me tornar organizador</Text>
         <Text style={styles.subtitle}>
           Quer divulgar e gerenciar seus próprios eventos no Eventa? Envie uma solicitação para obter acesso às ferramentas de organização.
@@ -104,6 +117,25 @@ export default function OrganizerRequestScreen({ navigation }) {
 
         <PrimaryButton label={loading ? 'Enviando...' : 'Enviar solicitação'} onPress={handleSubmit} />
       </ScrollView>
+
+      <View style={styles.bottomMenu}>
+        <Pressable style={styles.menuItem} onPress={() => openTab('Home')}>
+          <Ionicons name="home-outline" size={21} color={COLORS.textSecondary} />
+          <Text style={styles.menuText}>Início</Text>
+        </Pressable>
+        <Pressable style={styles.menuItem} onPress={() => openTab('Explore')}>
+          <Ionicons name="compass-outline" size={21} color={COLORS.textSecondary} />
+          <Text style={styles.menuText}>Explorar</Text>
+        </Pressable>
+        <Pressable style={styles.menuItem} onPress={() => openTab('MyRegistrations')}>
+          <Ionicons name="calendar-outline" size={21} color={COLORS.textSecondary} />
+          <Text style={styles.menuText}>Inscrições</Text>
+        </Pressable>
+        <Pressable style={styles.menuItem} onPress={() => openTab('Profile')}>
+          <Ionicons name="person-outline" size={21} color={COLORS.textSecondary} />
+          <Text style={styles.menuText}>Perfil</Text>
+        </Pressable>
+      </View>
     </ScreenContainer>
   );
 }
@@ -111,6 +143,12 @@ export default function OrganizerRequestScreen({ navigation }) {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: SPACING.xl,
+  },
+  backButton: {
+    position: 'absolute',
+    top: SPACING.md,
+    left: SPACING.md,
+    zIndex: 1,
   },
   title: {
     color: COLORS.text,
@@ -156,5 +194,24 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 12,
     textAlign: 'right',
+  },
+  bottomMenu: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: COLORS.white,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  menuItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    marginTop: 3,
   },
 });

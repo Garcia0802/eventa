@@ -89,5 +89,6 @@ router.patch(
 );
 
 router.get('/me', authMiddleware, authController.me);
+router.post('/logout', authMiddleware, authController.logout);
 
 module.exports = router;
